@@ -17,7 +17,7 @@ type Chunks struct {
 	offset uint32
 }
 
-func NewChunks(l *sitter.Language, sourceCode []byte, minSize, maxSize uint32) (*Chunks, error) {
+func New(l *sitter.Language, sourceCode []byte, minSize, maxSize uint32) (*Chunks, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(l)
 

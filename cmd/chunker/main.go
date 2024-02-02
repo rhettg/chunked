@@ -26,7 +26,7 @@ func main() {
 	}
 	sourceCode, _ := io.ReadAll(f)
 
-	ch, err := sitter.NewChunks(golang.GetLanguage(), sourceCode, 256, 500)
+	ch, err := sitter.New(golang.GetLanguage(), sourceCode, 256, 500)
 	if err != nil {
 		log.Fatal(err)
 	}
