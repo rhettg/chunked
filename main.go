@@ -27,7 +27,7 @@ func main() {
 	}
 	sourceCode, _ := io.ReadAll(f)
 
-	ch, err := NewChunks(golang.GetLanguage(), sourceCode, 256)
+	ch, err := NewChunks(golang.GetLanguage(), sourceCode, 256, false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,9 +45,12 @@ type Chunks struct {
 	sourceCode []byte
 	size       uint32
 	c          *sitter.TreeCursor
+
+	offset      uint32
+	splitChunks bool
 }
 
-func NewChunks(l *sitter.Language, sourceCode []byte, chunkSize uint32) (*Chunks, error) {
+func NewChunks(l *sitter.Language, sourceCode []byte, chunkSize uint32, splitChunks bool) (*Chunks, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(l)
 
@@ -65,6 +68,8 @@ func NewChunks(l *sitter.Language, sourceCode []byte, chunkSize uint32) (*Chunks
 		sourceCode: sourceCode,
 		size:       chunkSize,
 		c:          c,
+
+		splitChunks: splitChunks,
 	}
 
 	return &ch, nil
@@ -72,12 +77,29 @@ func NewChunks(l *sitter.Language, sourceCode []byte, chunkSize uint32) (*Chunks
 
 func (c *Chunks) Next() ([]byte, bool) {
 	n := c.c.CurrentNode()
-	//fmt.Println(n)
 	start := n.StartByte()
 	end := n.EndByte()
 
+	start += c.offset
+
+	if c.splitChunks && end-start > c.size {
+		// TODO: It would be better to search for line endings maybe? Or other
+		// context sensitive break point.
+		end = start + c.size
+		if end >= n.EndByte() {
+			c.offset = 0
+			return c.sourceCode[start:n.EndByte()], c.c.GoToNextSibling()
+		}
+
+		c.offset += c.size
+		return c.sourceCode[start:end], true
+	}
+
+	c.offset = 0
+
 	more := false
 	for c.c.GoToNextSibling() {
+		c.offset = 0
 		if c.c.CurrentNode().EndByte()-start > c.size {
 			more = true
 			break
