@@ -8,8 +8,6 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-// The main function
-
 type Chunks struct {
 	sourceCode []byte
 	minSize    uint32
