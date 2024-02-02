@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -10,33 +11,45 @@ import (
 	"github.com/smacker/go-tree-sitter/golang"
 )
 
+// The main function
 func main() {
 	parser := sitter.NewParser()
 	parser.SetLanguage(golang.GetLanguage())
 
-	f, _ := os.Open("main.go")
+	if len(os.Args) != 2 {
+		log.Fatal("Usage: go run main.go <file>")
+	}
+	fName := os.Args[1]
+
+	f, err := os.Open(fName)
+	if err != nil {
+		log.Fatal(err)
+	}
 	sourceCode, _ := io.ReadAll(f)
-	tree := parser.Parse(nil, sourceCode)
+	tree, err := parser.ParseCtx(context.Background(), nil, sourceCode)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	c := sitter.NewTreeCursor(tree.RootNode())
 	if !c.GoToFirstChild() {
 		log.Fatal("no first child")
 	}
+
 	for {
 		n := c.CurrentNode()
-		fmt.Println(n.Type())
-		if n.Type() == "function_declaration" {
-			fmt.Println(n.Symbol())
-			fmt.Println(n.EndPoint().Row - n.StartPoint().Row)
-			//fmt.Println(n.Content(sourceCode))
-			// find the identifier
-			i := n.ChildByFieldName("name")
-			if i == nil {
-				fmt.Println("no identifier")
-			} else {
-				fmt.Println(i.Content(sourceCode))
-			}
+		length := n.EndPoint().Row - n.StartPoint().Row + 1
+
+		name := "anonymous"
+		i := n.ChildByFieldName("name")
+		if i != nil {
+			name = i.Content(sourceCode)
 		}
+
+		if n.Type() != "\n" && n.Type() != "comment" {
+			fmt.Printf("%s %s (%d lines)\n", n.Type(), name, length)
+		}
+
 		if !c.GoToNextSibling() {
 			break
 		}
