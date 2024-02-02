@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"unicode"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
@@ -74,6 +75,32 @@ func NewChunks(l *sitter.Language, sourceCode []byte, minSize, maxSize uint32) (
 	return &ch, nil
 }
 
+func endOnLines(minSize, maxSize uint32, sourceCode []byte) uint32 {
+	for i := uint32(0); i < uint32(len(sourceCode)); i++ {
+		if sourceCode[i] == '\n' {
+			if i > minSize {
+				return i
+			}
+		}
+		if i > maxSize {
+			return 0
+		}
+	}
+	return uint32(len(sourceCode))
+}
+
+func endOnWhitespace(minSize, maxSize uint32, sourceCode []byte) uint32 {
+	for i := uint32(0); i < uint32(len(sourceCode)); i++ {
+		if unicode.IsSpace(rune(sourceCode[i])) && i > minSize {
+			return i
+		}
+		if i > maxSize {
+			return 0
+		}
+	}
+	return uint32(len(sourceCode))
+}
+
 func (c *Chunks) Next() ([]byte, bool) {
 	n := c.c.CurrentNode()
 	start := n.StartByte()
@@ -84,13 +111,26 @@ func (c *Chunks) Next() ([]byte, bool) {
 	if c.maxSize > 0 && end-start > c.maxSize {
 		// TODO: It would be better to search for line endings maybe? Or other
 		// context sensitive break point.
-		end = start + c.maxSize
+		lineEnd := endOnLines(c.minSize, c.maxSize, c.sourceCode[start:])
+		if lineEnd > 0 {
+			fmt.Println("end on line")
+			end = start + lineEnd
+		} else {
+			spaceEnd := endOnWhitespace(c.minSize, c.maxSize, c.sourceCode[start:])
+			if spaceEnd > 0 {
+				fmt.Println("end on line")
+				end = start + spaceEnd
+			} else {
+				end = start + c.maxSize
+			}
+		}
+
 		if end >= n.EndByte() {
 			c.offset = 0
 			return c.sourceCode[start:n.EndByte()], c.c.GoToNextSibling()
 		}
 
-		c.offset += c.maxSize
+		c.offset += end - start
 		return c.sourceCode[start:end], true
 	}
 
