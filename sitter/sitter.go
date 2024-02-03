@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"unicode"
 
+	"github.com/rhettg/chunker/plaintext"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -74,22 +75,14 @@ func (c *Chunks) Next() ([]byte, bool) {
 
 	start += c.offset
 
-	if c.maxSize > 0 && end-start > c.maxSize {
+	// The natural chunk / node could be larger than our max, we'll have to break it up.
+	if end-start > c.maxSize {
 		// TODO: I could imagine it being *even* better to futher use the
 		// tree-sitter structures to slowly build up more of the chunk.
 		// Prioritizing blocks of code, for loops, etc. I'm not quite sure what
 		// that would look like though. Especially in a way that would be language agnostic.
-		lineEnd := endOnLines(c.minSize, c.maxSize, c.sourceCode[start:])
-		if lineEnd > 0 {
-			end = start + lineEnd
-		} else {
-			spaceEnd := endOnWhitespace(c.minSize, c.maxSize, c.sourceCode[start:])
-			if spaceEnd > 0 {
-				end = start + spaceEnd
-			} else {
-				end = start + c.maxSize
-			}
-		}
+		plainSplit := plaintext.FindSplitBounds(c.sourceCode[start:], int(c.minSize), int(c.maxSize))
+		end := start + uint32(plainSplit)
 
 		if end >= n.EndByte() {
 			c.offset = 0
@@ -105,7 +98,7 @@ func (c *Chunks) Next() ([]byte, bool) {
 	more := false
 	for c.c.GoToNextSibling() {
 		c.offset = 0
-		if c.c.CurrentNode().EndByte()-start > c.minSize {
+		if c.c.CurrentNode().EndByte()-start > c.maxSize {
 			more = true
 			break
 		}

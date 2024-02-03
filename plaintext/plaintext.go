@@ -27,27 +27,27 @@ func New(r io.Reader, minSize, maxSize int) *Plaintext {
 	return &p
 }
 
-func (p *Plaintext) splitFunc(data []byte, atEOF bool) (int, []byte, error) {
+func FindSplitBounds(data []byte, minSize, maxSize int) int {
 	lastWhitespace := -1
 	lastNewline := -1
 	lastDoubleNewline := -1
 	for ndx := 0; ndx < len(data); ndx++ {
-		if ndx > p.maxSize {
-			if lastDoubleNewline > p.minSize {
-				return lastDoubleNewline, data[:lastDoubleNewline], nil
+		if ndx > maxSize {
+			if lastDoubleNewline > minSize {
+				return lastDoubleNewline
 			}
 
-			if lastNewline > p.minSize {
-				return lastNewline, data[:lastNewline], nil
+			if lastNewline > minSize {
+				return lastNewline
 			}
 
-			if lastWhitespace > p.minSize {
-				return lastWhitespace, data[:lastWhitespace], nil
+			if lastWhitespace > minSize {
+				return lastWhitespace
 			}
 
 			// At this point we're past the max split but nothing structurally is giving us
 			// a better split.  We'll just return what we have.
-			return ndx, data[:ndx], nil
+			return ndx
 		}
 
 		if isByteSpace(data[ndx]) {
@@ -63,16 +63,21 @@ func (p *Plaintext) splitFunc(data []byte, atEOF bool) (int, []byte, error) {
 		}
 	}
 
-	// At this point we've been through all the data. We must need more data to
-	// find an appropriate sized split.
+	return -1
+}
 
-	if atEOF {
-		// If we're at EOF, we have a final split, no matter how big it is
-		return len(data), data, bufio.ErrFinalToken
+func (p *Plaintext) splitFunc(data []byte, atEOF bool) (int, []byte, error) {
+	n := FindSplitBounds(data, p.minSize, p.maxSize)
+	if n < p.minSize {
+		if atEOF {
+			return len(data), data, bufio.ErrFinalToken
+		}
+
+		// Need more data
+		return 0, nil, nil
 	}
 
-	// Need more data
-	return 0, nil, nil
+	return n, data[:n], nil
 }
 
 func (p *Plaintext) Next() ([]byte, bool) {
