@@ -75,8 +75,10 @@ func (c *Chunks) Next() ([]byte, bool) {
 	start += c.offset
 
 	if c.maxSize > 0 && end-start > c.maxSize {
-		// TODO: It would be better to search for line endings maybe? Or other
-		// context sensitive break point.
+		// TODO: I could imagine it being *even* better to futher use the
+		// tree-sitter structures to slowly build up more of the chunk.
+		// Prioritizing blocks of code, for loops, etc. I'm not quite sure what
+		// that would look like though. Especially in a way that would be language agnostic.
 		lineEnd := endOnLines(c.minSize, c.maxSize, c.sourceCode[start:])
 		if lineEnd > 0 {
 			end = start + lineEnd
