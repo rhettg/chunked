@@ -1,4 +1,4 @@
-module github.com/rhettg/sitter
+module github.com/rhettg/chunker
 
 go 1.21.6
 

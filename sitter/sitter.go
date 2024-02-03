@@ -17,7 +17,7 @@ type Chunks struct {
 	offset uint32
 }
 
-func New(l *sitter.Language, sourceCode []byte, minSize, maxSize uint32) (*Chunks, error) {
+func New(l *sitter.Language, sourceCode []byte, minSize, maxSize int) (*Chunks, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(l)
 
@@ -33,8 +33,8 @@ func New(l *sitter.Language, sourceCode []byte, minSize, maxSize uint32) (*Chunk
 
 	ch := Chunks{
 		sourceCode: sourceCode,
-		minSize:    minSize,
-		maxSize:    maxSize,
+		minSize:    uint32(minSize),
+		maxSize:    uint32(maxSize),
 		c:          c,
 	}
 
